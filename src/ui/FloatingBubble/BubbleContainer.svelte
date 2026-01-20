@@ -6,6 +6,8 @@
 
   export let position = { x: 0, y: 0 };
   export let visible = false;
+  export let previewMode = false;
+  export let previewText = "";
 
   // Simple preset actions for MVP
   const actions = [
@@ -17,25 +19,54 @@
   function handleAction(actionId: string) {
     dispatch("action", actionId);
   }
+
+  function handleConfirm(mode: "replace" | "append") {
+    dispatch("confirm", { mode, text: previewText });
+  }
+
+  function handleCancel() {
+    dispatch("cancel");
+  }
 </script>
 
 {#if visible}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div
-    class="synapse-floating-bubble"
+    class="synapse-floating-bubble {previewMode
+      ? 'synapse-active-bubble-expanded'
+      : ''}"
     style="top: {position.y}px; left: {position.x}px;"
     transition:fly={{ y: 10, duration: 200 }}
     on:mousedown|stopPropagation
   >
-    {#each actions as action}
-      <button
-        class="synapse-bubble-btn"
-        on:click={() => handleAction(action.id)}
-      >
-        {action.label}
-      </button>
-    {/each}
+    {#if !previewMode}
+      {#each actions as action}
+        <button
+          class="synapse-bubble-btn"
+          on:click={() => handleAction(action.id)}
+        >
+          {action.label}
+        </button>
+      {/each}
+    {:else}
+      <div class="synapse-bubble-preview">
+        <div class="synapse-preview-content">{previewText}</div>
+        <div class="synapse-preview-actions">
+          <button
+            class="synapse-action-btn replace"
+            on:click={() => handleConfirm("replace")}>Replace</button
+          >
+          <button
+            class="synapse-action-btn append"
+            on:click={() => handleConfirm("append")}>Append</button
+          >
+          <button class="synapse-action-btn cancel" on:click={handleCancel}
+            >Discard</button
+          >
+        </div>
+      </div>
+    {/if}
   </div>
 {/if}
 

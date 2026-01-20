@@ -1,8 +1,10 @@
 import { App, Editor, MarkdownView, Plugin } from "obsidian";
 import { singleton } from "tsyringe";
+import { SettingsManager } from "../../services/SettingsManager";
 import BubbleContainer from "./BubbleContainer.svelte";
 import { LoggerService } from "../../services/LoggerService";
 import { ServiceContainer } from "../../core/ServiceContainer";
+import { LLMService } from "../../services/LLM/LLMService";
 
 @singleton()
 @singleton()
@@ -12,6 +14,7 @@ export class BubbleManager {
   private component: BubbleContainer | null = null;
   private containerEl!: HTMLElement;
   private logger: LoggerService;
+  private isPreviewMode = false;
 
   constructor() {
     this.logger = ServiceContainer.getInstance().resolve(LoggerService);
@@ -40,6 +43,14 @@ export class BubbleManager {
       this.handleAction(e.detail);
     });
 
+    this.component.$on("confirm", (e) => {
+      this.applyResult(e.detail.mode, e.detail.text);
+    });
+
+    this.component.$on("cancel", () => {
+      this.hideBubble();
+    });
+
     // Register DOM events
     this.plugin.registerDomEvent(document, "mouseup", (evt: MouseEvent) => {
       this.handleSelection(evt);
@@ -59,6 +70,11 @@ export class BubbleManager {
   }
 
   private handleSelection(evt: MouseEvent) {
+    if (this.component && this.isPreviewMode) {
+      // Don't interfere if user is reviewing a preview
+      return;
+    }
+
     const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!activeView) {
       this.logger.debug("No active MarkdownView");
@@ -98,25 +114,98 @@ export class BubbleManager {
 
   private showBubble(pos: { x: number; y: number }) {
     if (this.component) {
+      this.isPreviewMode = false;
       this.component.$set({
         visible: true,
-        position: pos
+        position: pos,
+        previewMode: false,
+        previewText: ""
       });
     }
   }
 
   private hideBubble() {
     if (this.component) {
-      this.component.$set({ visible: false });
+      this.isPreviewMode = false;
+      this.component.$set({ visible: false, previewMode: false });
     }
   }
 
-  private handleAction(actionId: string) {
+  private async handleAction(actionId: string) {
     this.logger.info(`Bubble action triggered: ${actionId}`);
-    // TODO: Implement actual logic (call LLM, etc.)
 
-    // For visual feedback, maybe hide after action?
-    // this.hideBubble(); 
+    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!activeView) return;
+
+    const editor = activeView.editor;
+    const selection = editor.getSelection();
+
+    if (!selection) return;
+
+    // Resolve Settings Manager to get translation preference
+    const settingsManager = ServiceContainer.getInstance().resolve(SettingsManager);
+    const settings = settingsManager.getSettings();
+    const langA = settings.translationLang1 || "English";
+    const langB = settings.translationLang2 || "Chinese";
+
+    const llmService = ServiceContainer.getInstance().resolve(LLMService);
+    let systemPrompt = "You are a helpful writing assistant.";
+    let userPrompt = "";
+
+    switch (actionId) {
+      case "polish":
+        userPrompt = `Polish the following text for clarity, flow, and conciseness. Only return the polished text:\n\n${selection}`;
+        break;
+      case "translate":
+        userPrompt = `You are a professional translator. 
+        If the following text is in ${langA}, translate it to ${langB}. 
+        If it is in ${langB} (or any other language), translate it to ${langA}. 
+        Only return the translation, no explanations:\n\n${selection}`;
+        break;
+      case "summarize":
+        userPrompt = `Summarize the following text in one concise sentence:\n\n${selection}`;
+        break;
+      default:
+        return;
+    }
+
+    // Visual feedback: could show a Notice or update bubble state
+    // For MVP, simplified feedback
+    // new Notice(`Synapse: Processing ${actionId}...`);
+
+    // Maybe show loading on bubble?
+    // this.component.$set({ visible: true }); // Keep visible?
+
+    try {
+      const processedText = await llmService.generate(userPrompt, systemPrompt);
+
+      // Instead of replacing, show preview
+      if (this.component) {
+        this.isPreviewMode = true;
+        this.component.$set({
+          previewMode: true,
+          previewText: processedText
+        });
+      }
+    } catch (error) {
+      this.logger.error("Bubble Action Failed", error);
+    }
+  }
+
+  private applyResult(mode: 'replace' | 'append', text: string) {
+    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!activeView) return;
+
+    const editor = activeView.editor;
+
+    if (mode === 'replace') {
+      editor.replaceSelection(text);
+    } else if (mode === 'append') {
+      const selection = editor.getSelection();
+      editor.replaceSelection(`${selection}\n${text}`);
+    }
+
+    this.hideBubble();
   }
 
   public destroy() {

@@ -23,29 +23,62 @@ export class OpenAIProvider implements LLMProvider {
     }
     messages.push({ role: "user", content: prompt });
 
+    // Sanitize Base URL
+    const baseUrl = this.baseUrl.replace(/\/$/, "");
+    const url = `${baseUrl}/chat/completions`;
+
+    const body: any = {
+      model: this.modelName,
+      messages: messages,
+      temperature: 0.7
+    };
+
+    // O-series models (e.g. o1-preview, o1-mini, o4-mini) use 'max_completion_tokens'
+    // Heuristic: check if model name starts with 'o' followed by a digit. This covers o1, o3, o4.
+    if (this.modelName.match(/^o\d/)) {
+      body.max_completion_tokens = 1000;
+    } else {
+      body.max_tokens = 1000;
+    }
+
+    console.log("[Synapse] Sending LLM Request:", {
+      url,
+      model: this.modelName,
+      messagesCount: messages.length
+    });
+
     const request: RequestUrlParam = {
-      url: `${this.baseUrl}/chat/completions`,
+      url: url,
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${this.apiKey}`
       },
-      body: JSON.stringify({
-        model: this.modelName,
-        messages: messages,
-        max_tokens: 1000,
-        temperature: 0.7
-      })
+      body: JSON.stringify(body),
+      throw: false
     };
 
-    const response = await requestUrl(request);
+    try {
+      const response = await requestUrl(request);
 
-    if (response.status !== 200) {
-      throw new Error(`OpenAI API Error: ${response.status} - ${response.text}`);
+      if (response.status >= 400) {
+        console.error("[Synapse] API Error Body:", response.text);
+        try {
+          const errorJson = response.json;
+          console.error("[Synapse] API Error JSON:", errorJson);
+          const msg = errorJson?.error?.message || response.text;
+          throw new Error(`API Error ${response.status}: ${msg}`);
+        } catch (jsonError) {
+          throw new Error(`API Error ${response.status}: ${response.text}`);
+        }
+      }
+
+      const data = response.json;
+      return data.choices[0].message.content;
+    } catch (e) {
+      console.error("[Synapse] Request Failed:", e);
+      throw e;
     }
-
-    const data = response.json;
-    return data.choices[0].message.content;
   }
 
   async *stream(prompt: string, systemPrompt?: string): AsyncGenerator<string, void, unknown> {

@@ -130,6 +130,38 @@ export class SynapseSettingTab extends PluginSettingTab {
 
     // --- Apply / Reconnect ---
     containerEl.createEl("hr");
+
+    containerEl.createEl("h3", { text: "General Preferences" });
+    const languages = [
+      "English", "Chinese", "Japanese", "Korean", "French",
+      "German", "Spanish", "Italian", "Russian", "Portuguese"
+    ];
+
+    new Setting(containerEl)
+      .setName("Translation Pair")
+      .setDesc("Auto-detect and translate between these two languages.")
+      .addDropdown(dropdown => {
+        languages.forEach(lang => dropdown.addOption(lang, lang));
+        dropdown.setValue(settings.translationLang1 || "English");
+        dropdown.onChange(async (value) => {
+          await this.settingsManager.updateSettings({ translationLang1: value });
+        });
+      })
+      .addExtraButton(btn => {
+        btn.setIcon("arrow-right-left")
+          .setTooltip("Bidirectional Translation")
+          .setDisabled(true);
+        btn.extraSettingsEl.addClass("synapse-translation-arrow"); // hook for css if needed
+      })
+      .addDropdown(dropdown => {
+        languages.forEach(lang => dropdown.addOption(lang, lang));
+        dropdown.setValue(settings.translationLang2 || "Chinese");
+        dropdown.onChange(async (value) => {
+          await this.settingsManager.updateSettings({ translationLang2: value });
+        });
+      });
+
+    containerEl.createEl("hr");
     new Setting(containerEl)
       .setName("Apply Changes")
       .setDesc("Restart AI Service with current configuration")

@@ -17,6 +17,8 @@ export type LLMProviderConfig = z.infer<typeof LLMProviderConfigSchema>;
 export const SynapseSettingsSchema = z.object({
   providers: z.array(LLMProviderConfigSchema),
   activeProviderId: z.string(),
+  translationLang1: z.string().default("English"),
+  translationLang2: z.string().default("Chinese"),
 });
 
 export type SynapseSettings = z.infer<typeof SynapseSettingsSchema>;
@@ -35,7 +37,9 @@ export const DEFAULT_SETTINGS: SynapseSettings = {
       defaultModelId: "gpt-3.5-turbo"
     }
   ],
-  activeProviderId: DEFAULT_PROVIDER_ID
+  activeProviderId: DEFAULT_PROVIDER_ID,
+  translationLang1: "English",
+  translationLang2: "Chinese"
 };
 
 @singleton()
@@ -67,7 +71,9 @@ export class SettingsManager {
             defaultModelId: data.modelName || "gpt-3.5-turbo"
           }
         ],
-        activeProviderId: DEFAULT_PROVIDER_ID
+        activeProviderId: DEFAULT_PROVIDER_ID,
+        translationLang1: "English",
+        translationLang2: "Chinese"
       };
       this.settings = migratedSettings;
       await this.saveSettings(); // Save migration immediately
