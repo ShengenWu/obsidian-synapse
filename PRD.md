@@ -90,6 +90,8 @@
 ### 4.2 隐私与模型
 
 * **模型灵活性:** 必须支持自定义 Base URL 和 API Key (OpenAI, Anthropic, DeepSeek)。
+* **多服务商支持:** 允许用户配置并保存多个 API 服务商配置 (Profile)，并能快速切换当前使用的服务商。
+* **配置反馈:** 设置页面需提供显式的“应用 (Apply)”或“测试连接”按钮，给予用户配置生效的反馈。
 * **本地优先:** 必须支持对接 Ollama (针对本地 LLM 用户)。
 * **索引存储:** 向量索引 (Vector Index) 必须存储在用户本地库的 `.obsidian/plugins/synapse/` 目录下，严禁上传云端。
 
