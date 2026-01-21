@@ -55,8 +55,27 @@ Press `Cmd+Shift+Space` (or your configured hotkey) to open the **Omni-Bar**.
 3.  **Active Profile**: Select which profile to use by default.
 4.  **Translation Pair**: Choose your primary languages for the Translate action (default: English ↔ Chinese).
 
-## 🤝 Contributing
+## 🗺️ Roadmap & Progress
 
+### ✅ Completed Features (v0.1.0)
+- **Core Architecture**: Robust DI system, Event Bus, and internal service management.
+- **Context-Aware Floating Bubble**:
+    - "Polish", "Translate", and "Summarize" actions.
+    - **Streaming Typewriter Effect**: Real-time visual feedback.
+    - **Safe-Guard Preview**: Review changes before applying them.
+- **Next-Gen Omni-Bar**:
+    - **Non-blocking Window**: Floating assistant that stays open while you work.
+    - **Chat History**: Auto-save conversations, switch sessions, and clear history.
+    - **Quick Controls**: Switch AI Models/Providers instantly from the footer.
+- **Smart Translation**: Dual-dropdown language selection for auto-detect translation.
+
+### 🚧 Works in Progress / Planned
+- **Local LLM Support**: Connect to Ollama/LM Studio.
+- **Prompt Library**: Create and share custom system prompts.
+- **Context Awareness**: Ability to "See" the current file content automatically in Chat.
+- **Slash Commands**: `/image`, `/table`, and more advanced editing commands.
+
+## 🤝 Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📄 License
