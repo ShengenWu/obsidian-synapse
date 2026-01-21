@@ -177,18 +177,35 @@ export class BubbleManager {
     // this.component.$set({ visible: true }); // Keep visible?
 
     try {
-      const processedText = await llmService.generate(userPrompt, systemPrompt);
-
-      // Instead of replacing, show preview
+      // 1. Enter preview mode immediately to show "thinking" state
       if (this.component) {
         this.isPreviewMode = true;
         this.component.$set({
           previewMode: true,
-          previewText: processedText
+          previewText: "" // Clear previous text
         });
       }
+
+      let fullText = "";
+
+      // 2. Stream chunks and update UI incrementally
+      for await (const chunk of llmService.stream(userPrompt, systemPrompt)) {
+        fullText += chunk;
+        if (this.component) {
+          this.component.$set({
+            previewText: fullText
+          });
+        }
+      }
+
     } catch (error) {
       this.logger.error("Bubble Action Failed", error);
+      // Optional: show error in bubble preview
+      if (this.component) {
+        this.component.$set({
+          previewText: `Error: ${error instanceof Error ? error.message : String(error)}`
+        });
+      }
     }
   }
 

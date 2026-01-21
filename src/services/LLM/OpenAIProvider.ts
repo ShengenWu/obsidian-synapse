@@ -82,24 +82,85 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   async *stream(prompt: string, systemPrompt?: string): AsyncGenerator<string, void, unknown> {
-    // Obsidian requestUrl doesn't support streaming easily, 
-    // for MVP we will use fetch but this might have CORS issues if not handled by Obsidian's requestUrl
-    // However, for standard OpenAI API, requestUrl is safer for CORS.
-    // Implementing proper streaming in Obsidian plugins usually requires using the native fetch with some tweaks 
-    // or a library like eventsource-parser. 
-    // For phase 1 MVP, let's stick to non-streaming or simulate it, 
-    // or implement a basic fetch-based stream if possible.
+    if (!this.apiKey) {
+      throw new Error("OpenAI API Key not configured.");
+    }
 
-    // Simulating streaming for now by just yielding the full response to keep MVP simple 
-    // and avoid complex fetch/Polyfill setup in this step.
-    // We will upgrade this to real streaming later.
+    const messages = [];
+    if (systemPrompt) {
+      messages.push({ role: "system", content: systemPrompt });
+    }
+    messages.push({ role: "user", content: prompt });
 
-    const text = await this.generate(prompt, systemPrompt);
-    // Simulate chunks
-    const chunkSize = 10;
-    for (let i = 0; i < text.length; i += chunkSize) {
-      yield text.slice(i, i + chunkSize);
-      await new Promise(r => setTimeout(r, 10)); // tiny delay
+    const baseUrl = this.baseUrl.replace(/\/$/, "");
+    const url = `${baseUrl}/chat/completions`;
+
+    const body: any = {
+      model: this.modelName,
+      messages: messages,
+      temperature: 0.7,
+      stream: true
+    };
+
+    if (this.modelName.match(/^o\d/)) {
+      body.max_completion_tokens = 1000;
+    } else {
+      body.max_tokens = 1000;
+    }
+
+    // Use native fetch for streaming
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${this.apiKey}`
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let msg = text;
+      try {
+        const json = JSON.parse(text);
+        msg = json.error?.message || text;
+      } catch (e) { }
+      throw new Error(`API Error ${response.status}: ${msg}`);
+    }
+
+    if (!response.body) {
+      throw new Error("No response body received for streaming.");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data: ")) continue;
+
+        const data = trimmed.slice(6);
+        if (data === "[DONE]") return;
+
+        try {
+          const json = JSON.parse(data);
+          const content = json.choices?.[0]?.delta?.content || "";
+          if (content) {
+            yield content;
+          }
+        } catch (e) {
+          console.warn("[Synapse] Stream parse error", e);
+        }
+      }
     }
   }
 }
