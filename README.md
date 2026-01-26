@@ -1,3 +1,5 @@
+[English](README.md) | [中文](README_zh.md)
+
 # Obsidian Synapse 🧠
 
 **Synapse** is a powerful AI assistant integrated directly into [Obsidian](https://obsidian.md). It bridges the gap between your thoughts and your knowledge base by bringing context-aware AI capabilities right to your cursor.
